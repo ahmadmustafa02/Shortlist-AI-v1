@@ -18,6 +18,15 @@ const STEPS = [
   { id: 3, label: "Timeline" },
 ];
 
+/**
+ * Wizard for kicking off a new “shortlist” analysis. I keep each step’s fields in
+ * separate state chunks instead of one big object so we only re-render what matters
+ * and the step components stay dumb/presentational.
+ *
+ * Flow ends by calling the `analyze-application` Edge Function with everything we
+ * collected; the overlay + `isSubmitting` keep the user from double-submitting while
+ * Supabase is doing its thing.
+ */
 const NewAnalysis = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -35,6 +44,16 @@ const NewAnalysis = () => {
   const [timeBudget, setTimeBudget] = useState<TimeBudget | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  /**
+   * Final step: ship the job + resume + time budget to the Edge Function and bounce
+   * to `/analysis/:id` on success.
+   *
+   * The annoying bit is error handling — `supabase.functions.invoke` doesn’t give you
+   * a nice JSON body on 4xx/5xx; you get a `FunctionsHttpError` and the actual message
+   * is often hiding in `error.context` (sometimes `json.error`, sometimes a string body
+   * you have to `JSON.parse`). I peel those layers so the toast shows what the
+   * function actually said instead of a useless generic message.
+   */
   const handleSubmit = async () => {
     if (!timeBudget) return;
     setIsSubmitting(true);

@@ -16,6 +16,14 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+/**
+ * Wraps the tree that needs Supabase auth. I subscribe to `onAuthStateChange` *before*
+ * calling `getSession()` on purpose — that’s the pattern Supabase recommends so you
+ * don’t miss a fast login/logout event that fires between mount and the session
+ * promise resolving. `loading` flips false only after we’ve at least tried to read
+ * the initial session, so protected routes can wait on it instead of flashing the
+ * wrong UI.
+ */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -38,6 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  /** Thin passthrough — keeps callers from importing `supabase` just to sign out. */
   const signOut = async () => {
     await supabase.auth.signOut();
   };
@@ -49,4 +58,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+/**
+ * Read the current user/session + loading flag from context. Will blow up in dev if
+ * you use it outside `AuthProvider` — that’s intentional so we fail loud instead of
+ * silently returning the default null session forever.
+ */
 export const useAuth = () => useContext(AuthContext);
