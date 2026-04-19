@@ -1,10 +1,8 @@
-import { useCallback, useRef, useState } from "react";
 import { FileText, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { extractTextFromPdf } from "@/lib/pdf";
-import { toast } from "@/hooks/use-toast";
+import { useResumePdfUpload } from "@/hooks/useResumePdfUpload";
 import { cn } from "@/lib/utils";
 
 interface ResumeStepProps {
@@ -15,8 +13,6 @@ interface ResumeStepProps {
   onNext: () => void;
 }
 
-const MAX_SIZE_MB = 10;
-
 export const ResumeStep = ({
   resumeText,
   onResumeTextChange,
@@ -24,61 +20,8 @@ export const ResumeStep = ({
   onFileNameChange,
   onNext,
 }: ResumeStepProps) => {
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleFile = useCallback(
-    async (file: File) => {
-      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-        toast({
-          title: "PDF only",
-          description: "Please upload a PDF resume, or paste your text below.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: `Max ${MAX_SIZE_MB}MB. Try compressing or pasting the text instead.`,
-          variant: "destructive",
-        });
-        return;
-      }
-      setIsExtracting(true);
-      try {
-        const text = await extractTextFromPdf(file);
-        if (!text || text.length < 40) {
-          toast({
-            title: "Couldn't read much from that PDF",
-            description: "It may be a scanned image. Paste your resume text below instead.",
-          });
-        } else {
-          toast({ title: "Resume extracted", description: "Review and edit anything that looks off." });
-        }
-        onResumeTextChange(text);
-        onFileNameChange(file.name);
-      } catch (err) {
-        console.error(err);
-        toast({
-          title: "Extraction failed",
-          description: "Paste your resume text below to continue.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsExtracting(false);
-      }
-    },
-    [onResumeTextChange, onFileNameChange],
-  );
-
-  const onDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
-  };
+  const { isExtracting, isDragging, setIsDragging, inputRef, handleFile, onDrop, maxSizeMb } =
+    useResumePdfUpload(onResumeTextChange, onFileNameChange);
 
   const wordCount = resumeText.trim() ? resumeText.trim().split(/\s+/).length : 0;
   const canContinue = wordCount >= 40;
@@ -92,7 +35,6 @@ export const ResumeStep = ({
         </p>
       </div>
 
-      {/* Drop zone */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -112,7 +54,7 @@ export const ResumeStep = ({
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) handleFile(file);
+            if (file) void handleFile(file);
             e.target.value = "";
           }}
         />
@@ -156,7 +98,7 @@ export const ResumeStep = ({
             </div>
             <div>
               <p className="font-display text-xl font-semibold">Drop your resume PDF here</p>
-              <p className="mt-1 text-sm text-muted-foreground">or click to browse — max {MAX_SIZE_MB}MB</p>
+              <p className="mt-1 text-sm text-muted-foreground">or click to browse — max {maxSizeMb}MB</p>
             </div>
             <Button onClick={() => inputRef.current?.click()} variant="hero">
               <Upload className="h-4 w-4" /> Choose PDF
@@ -165,7 +107,6 @@ export const ResumeStep = ({
         )}
       </div>
 
-      {/* Editable extracted text */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="resume-text" className="text-base font-medium">
