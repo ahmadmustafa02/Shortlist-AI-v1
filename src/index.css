@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ShortlistAI Design System
+   Warm cream + burnt orange. All colors HSL.
+*/
+
+@layer base {
+  :root {
+    /* Brand */
+    --background: 36 50% 97%;          /* #FBF7F1 warm cream */
+    --foreground: 30 18% 10%;          /* #1E1B16 deep ink */
+
+    --surface: 34 45% 94%;             /* slightly deeper cream for sections */
+    --surface-elevated: 0 0% 100%;     /* white cards on cream */
+
+    --card: 0 0% 100%;
+    --card-foreground: 30 18% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 30 18% 10%;
+
+    --primary: 14 80% 54%;             /* #E85D2C burnt orange */
+    --primary-foreground: 36 50% 98%;
+    --primary-soft: 18 90% 92%;        /* peach surface */
+    --primary-glow: 22 95% 64%;        /* lighter glow */
+
+    --secondary: 30 25% 92%;           /* warm muted */
+    --secondary-foreground: 30 18% 14%;
+
+    --muted: 32 25% 90%;
+    --muted-foreground: 30 10% 38%;
+
+    --accent: 18 90% 92%;              /* peach */
+    --accent-foreground: 14 80% 30%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 55% 38%;
+    --warning: 38 92% 50%;
+
+    --border: 30 20% 86%;
+    --input: 30 20% 86%;
+    --ring: 14 80% 54%;
+
+    --radius: 1rem;
+
+    /* Gradients */
+    --gradient-warm: linear-gradient(135deg, hsl(36 60% 96%) 0%, hsl(28 70% 90%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(14 80% 54%) 0%, hsl(22 95% 64%) 100%);
+    --gradient-hero: radial-gradient(ellipse at top, hsl(22 95% 88% / 0.6), transparent 60%);
+
+    /* Shadows — soft, warm */
+    --shadow-sm: 0 1px 2px 0 hsl(30 30% 20% / 0.04);
+    --shadow-soft: 0 8px 24px -8px hsl(30 30% 20% / 0.08);
+    --shadow-elevated: 0 20px 50px -20px hsl(14 80% 30% / 0.18);
+    --shadow-glow: 0 0 60px hsl(22 95% 64% / 0.35);
+
+    /* Sidebar (unused for now) */
+    --sidebar-background: 36 50% 97%;
+    --sidebar-foreground: 30 18% 14%;
+    --sidebar-primary: 14 80% 54%;
+    --sidebar-primary-foreground: 36 50% 98%;
+    --sidebar-accent: 30 25% 92%;
+    --sidebar-accent-foreground: 30 18% 14%;
+    --sidebar-border: 30 20% 86%;
+    --sidebar-ring: 14 80% 54%;
+  }
+
+  .dark {
+    --background: 28 15% 8%;
+    --foreground: 36 40% 95%;
+
+    --surface: 28 15% 11%;
+    --surface-elevated: 28 12% 14%;
+
+    --card: 28 12% 12%;
+    --card-foreground: 36 40% 95%;
+
+    --popover: 28 12% 12%;
+    --popover-foreground: 36 40% 95%;
+
+    --primary: 18 88% 60%;
+    --primary-foreground: 28 15% 8%;
+    --primary-soft: 18 60% 18%;
+    --primary-glow: 22 95% 68%;
+
+    --secondary: 28 10% 18%;
+    --secondary-foreground: 36 40% 95%;
+
+    --muted: 28 10% 16%;
+    --muted-foreground: 30 10% 62%;
+
+    --accent: 18 60% 22%;
+    --accent-foreground: 18 90% 80%;
+
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 28 10% 20%;
+    --input: 28 10% 20%;
+    --ring: 18 88% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Fraunces', Georgia, serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image: radial-gradient(hsl(30 20% 75% / 0.4) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .bg-warm {
+    background-image: var(--gradient-warm);
+  }
+  .bg-hero {
+    background-image: var(--gradient-hero);
+  }
+  .text-gradient-primary {
+    background-image: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+}
