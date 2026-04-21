@@ -1,4 +1,4 @@
-// AI analysis: scores resume vs JD via Google Gemini generateContent (JSON mode).
+// AI analysis: scores resume vs JD via xAI Grok (OpenAI-compatible chat completions).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.103.3";
 
@@ -230,18 +230,6 @@ ${args.jdText}
 ${args.resumeText}`;
 }
 
-function buildGeminiUserPrompt(timeBudget: TimeBudget, jobTitle: string, company: string, jdText: string, resumeText: string) {
-  const schema = JSON.stringify(reportTool.function.parameters);
-  return [
-    buildSystemPrompt(timeBudget),
-    "",
-    "JSON Schema for your response (conform exactly; include every required property):",
-    schema,
-    "",
-    buildUserPrompt({ jobTitle, company, jdText, resumeText }),
-  ].join("\n");
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -265,8 +253,10 @@ Deno.serve(async (req: Request) => {
     // Validate JWT in-code (verify_jwt is disabled at the platform layer because
     // the new signing-keys system uses ES256 which the gateway verifier rejects).
     const token = authHeader.replace(/^Bearer\s+/i, "");
+    console.log("token extracted, length:", token.length);
     const userClient = createClient(supabaseUrl, supabaseAnon);
     const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
+    console.log("getClaims result:", claimsErr ? "error: " + claimsErr.message : "ok, userId=" + claimsData?.claims?.sub);
     if (claimsErr || !claimsData?.claims?.sub) {
       console.error("getClaims failed", claimsErr);
       return new Response(JSON.stringify({ error: "Invalid session" }), {
@@ -306,27 +296,33 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const geminiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!geminiKey) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), {
+    const grokKey = Deno.env.get("GROQ_API_KEY");
+    console.log("GROQ_API_KEY present:", !!grokKey);
+    if (!grokKey) {
+      return new Response(JSON.stringify({ error: "GROQ_API_KEY not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const yourPrompt = buildGeminiUserPrompt(timeBudget, jobTitle, company, jdText, resumeText);
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: yourPrompt }] }],
-          generationConfig: { responseMimeType: "application/json" },
-        }),
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${grokKey}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: buildSystemPrompt(timeBudget) },
+          { role: "user", content: buildUserPrompt({ jobTitle, company, jdText, resumeText }) },
+        ],
+        tools: [reportTool],
+        tool_choice: { type: "function", function: { name: "submit_application_report" } },
+      }),
+    });
+
+    console.log("Groq response status:", response.status);
 
     if (response.status === 429) {
       return new Response(
@@ -344,7 +340,7 @@ Deno.serve(async (req: Request) => {
     }
     if (!response.ok) {
       const t = await response.text();
-      console.error("Gemini API error", response.status, t);
+      console.error("Grok API error", response.status, t);
       return new Response(JSON.stringify({ error: "AI gateway error" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -353,16 +349,16 @@ Deno.serve(async (req: Request) => {
 
     const data = await response.json();
     if (data?.error) {
-      console.error("Gemini error payload", data.error);
+      console.error("Grok error payload", data.error);
       return new Response(JSON.stringify({ error: "AI gateway error" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text || typeof text !== "string") {
-      console.error("No Gemini text", JSON.stringify(data).slice(0, 1000));
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall?.function?.arguments) {
+      console.error("No tool call from Grok", JSON.stringify(data).slice(0, 1000));
       return new Response(JSON.stringify({ error: "AI did not return a structured report" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -371,9 +367,9 @@ Deno.serve(async (req: Request) => {
 
     let report: Record<string, unknown>;
     try {
-      report = JSON.parse(text);
+      report = JSON.parse(toolCall.function.arguments);
     } catch (e) {
-      console.error("Bad JSON from AI", e);
+      console.error("Bad JSON from Grok", e);
       return new Response(JSON.stringify({ error: "Invalid AI response format" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
